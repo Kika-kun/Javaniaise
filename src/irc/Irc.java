@@ -101,7 +101,7 @@ class readListener implements ActionListener {
         try {
             // lock the object in read mode
             //irc.sentence.jvnLockRead();
-            irc.aSuppJs.jvnLockRead(irc.sentence.jvnGetObjectId());
+            irc.sentence.jvnLockRead();
 
             // invoke the method
             String s = ((Sentence) (irc.sentence.jvnGetObjectState())).read();
@@ -141,7 +141,7 @@ class writeListener implements ActionListener {
 
             // lock the object in write mode
             //irc.sentence.jvnLockWrite();
-            irc.aSuppJs.jvnLockWrite(irc.sentence.jvnGetObjectId());
+            irc.sentence.jvnLockWrite();
             // invoke the method
             ((Sentence) (irc.sentence.jvnGetObjectState())).write(s);
 

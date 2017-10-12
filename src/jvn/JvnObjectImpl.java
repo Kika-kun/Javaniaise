@@ -13,49 +13,32 @@ import java.io.Serializable;
  */
 public class JvnObjectImpl implements JvnObject {
     
-
-    public static enum Lock implements Serializable {
-        NL(true), 
-        RC(true), 
-        WC(true), 
-        R(false), 
-        W(false), 
-        RWC(false);
-        
-        private final boolean canLock;
-        Lock(boolean canLock) {
-            this.canLock = canLock;
-        }
-        
-        public boolean canLock() {
-            return canLock;
-        }
-    };
-    public Lock status;
+    private Lock status;
+    
     private final int id;
     private final Serializable ref;
+    
+    private final JvnLocalServer js;
 
     /**
      *
      * @param s
+     * @param id
      */
     public JvnObjectImpl(Serializable s, int id) {
         super();
         status = Lock.WC;
         ref = s;
         this.id = id;
+        js = JvnServerImpl.jvnGetServer();
     }    
        
     public synchronized void jvnLockRead() throws JvnException {
-        if (status.canLock()) {
-            status = Lock.R;
-        }
+        js.jvnLockRead(id);
     }
 
     public synchronized void jvnLockWrite() throws JvnException {
-        if (status.canLock) {
-            status = Lock.W;
-        }
+        js.jvnLockWrite(id);
     }
 
     public synchronized void jvnUnLock() throws JvnException {
@@ -85,6 +68,10 @@ public class JvnObjectImpl implements JvnObject {
         //if canL
         status = Lock.R;
         return ref;
+    }
+
+    public Lock jvnGetStatus() {
+        return status;
     }
     
 }

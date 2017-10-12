@@ -131,7 +131,6 @@ public class JvnServerImpl
     public JvnObject jvnLookupObject(String jon)
             throws jvn.JvnException {
         try {
-            // to be completed
             return coordinator.jvnLookupObject(jon, js);
         } catch (RemoteException ex) {
             Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
@@ -149,7 +148,7 @@ public class JvnServerImpl
      */
     public Serializable jvnLockRead(int joi)
             throws JvnException {
-       
+
         try {
             return coordinator.jvnLockRead(joi, js);
         } catch (RemoteException ex) {
@@ -207,7 +206,7 @@ public class JvnServerImpl
   public Serializable jvnInvalidateWriter(int joi)
             throws java.rmi.RemoteException, jvn.JvnException {
         // to be completed 
-      System.out.println("On passe ici ?2");
+        System.out.println("On passe ici ?2");
         return null;
     }
 
@@ -224,6 +223,10 @@ public class JvnServerImpl
         // to be completed 
         return null;
     }
-;
+
+    public JvnObject jvnGetObject(int joi)
+            throws RemoteException, JvnException {
+        return listObjects.get(joi);
+    }
 
 }

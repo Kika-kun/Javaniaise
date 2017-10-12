@@ -43,6 +43,9 @@ public interface JvnRemoteServer extends Remote {
    public Serializable jvnInvalidateWriterForReader(int joi)
 	 throws java.rmi.RemoteException,jvn.JvnException;
 
+   // Return a jvnObject if it's stored in that server
+   public JvnObject jvnGetObject(int joi)
+           throws RemoteException, JvnException;
 }
 
  

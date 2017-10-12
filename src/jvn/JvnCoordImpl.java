@@ -15,10 +15,12 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jvn.JvnObjectImpl.Lock;
+import jvn.JvnObject.Lock;
 
 public class JvnCoordImpl
         extends UnicastRemoteObject
@@ -28,11 +30,9 @@ public class JvnCoordImpl
     private static Integer objectId = 0;
 
     private final HashMap<JvnRemoteServer, Integer> listServerToServerId;
-    private final HashMap<String, JvnObject> listObjectNameToObjectRef;
-    private final HashMap<JvnObject, JvnRemoteServer> listObjectRefToServer;
-    private final HashMap<JvnObject, Tuple<JvnRemoteServer, Lock>> listObjectRefServerUser;
+    private final HashMap<Integer, JvnObjectState> listObjects;
 
-    Registry r;
+    private static Registry r;
 
     /**
      * Default constructor
@@ -46,9 +46,7 @@ public class JvnCoordImpl
         r.bind("coordinator", this);
 
         listServerToServerId = new HashMap<JvnRemoteServer, Integer>();
-        listObjectNameToObjectRef = new HashMap<String, JvnObject>();
-        listObjectRefToServer = new HashMap<JvnObject, JvnRemoteServer>();
-        listObjectRefServerUser = new HashMap<JvnObject, Tuple<JvnRemoteServer, Lock>>();
+        listObjects = new HashMap<Integer, JvnObjectState>();
     }
 
     /**
@@ -79,11 +77,20 @@ public class JvnCoordImpl
      */
     public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
             throws java.rmi.RemoteException, jvn.JvnException {
-        // TODO: Do smth if jon already existed
+        // Check if the name is already registered
+        for (JvnObjectState object : listObjects.values()) {
+            if (object.getName().equals(jon)) {
+                System.err.println("Error : that object name is already registered");
+                throw new JvnException("Trying to register an object under a name already existing.");
+            }
+        }
+        // Create a new object to register
+        JvnObjectState object = new JvnObjectState(js, jon, jo.jvnGetObjectId());
+        object.setStatus(jo.jvnGetStatus());
+        listObjects.put(jo.jvnGetObjectId(), object);
+
         System.out.println("Registered '" + jon + "'");
-        //System.out.flush();
-        listObjectNameToObjectRef.put(jon, jo);
-        listObjectRefToServer.put(jo, js);
+
     }
 
     /**
@@ -98,7 +105,12 @@ public class JvnCoordImpl
      */
     public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
             throws java.rmi.RemoteException, jvn.JvnException {
-        return listObjectNameToObjectRef.get(jon);
+        for (JvnObjectState object : listObjects.values()) {
+            if (object.getName().equals(jon)) {
+                return object.getOwner().jvnGetObject(object.getId());
+            }
+        }
+        return null;
     }
 
     /**
@@ -112,44 +124,27 @@ public class JvnCoordImpl
      */
     public Serializable jvnLockRead(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
-        // check si qqn a le lock
-        for (JvnObject o : listObjectRefServerUser.keySet()) {
-            // si l'objet est locked
-            if (o.jvnGetObjectId() == joi) {
-                Tuple<JvnRemoteServer, Lock> t = listObjectRefServerUser.get(o);
-                Serializable ref;
-
-                //Si celui qui lockait l'objet n'est pas celui qui redemande un lock
-                if (!(t.a == js)) {
-                    switch (t.b) {
-                        case W:
-                        case WC:
-                            t.a.jvnInvalidateWriterForReader(joi);
-                            ref = o.jvnInvalidateWriterForReader();
-                            t = listObjectRefServerUser.remove(o);
-                            t.a = js;
-                            t.b = Lock.R;
-                            listObjectRefServerUser.put(o, t);
-                            break;
-                        default:
-                            ref = o.jvnGetObjectState();
-                    }
-                    return ref;
-                } else {
-                    System.err.println("Error : trying to lock something you already lock");
-                }
-            }
+        JvnObjectState object = listObjects.get(joi);
+        if (object == null) {
+            throw new JvnException("Error : No JvnObject with this ID");
         }
-
-        // OMG personne avait le lock
-        Tuple<JvnRemoteServer, Lock> t = new Tuple<JvnRemoteServer, Lock>(js, Lock.R);
-        for (JvnObject o : listObjectRefToServer.keySet()) {
-            if (o.jvnGetObjectId() == joi) {
-                listObjectRefServerUser.put(o, t);
-                return o.jvnGetObjectState();
-            }
+        Serializable ret;
+        switch (object.getStatus()) {
+            case W:
+            case WC:
+                ret = object.getWriter().jvnInvalidateWriterForReader(object.getId());
+                JvnRemoteServer demotedWriter = object.getWriter();
+                object.removeWriter();
+                object.setStatus(Lock.R);
+                object.addReader(js);
+                object.addReader(demotedWriter);
+                break;
+            default:
+                object.setStatus(Lock.R);
+                object.addReader(js);
+                ret = object.getOwner().jvnGetObject(object.getId()).jvnGetObjectState();
         }
-        throw new JvnException("Error : No JvnObject with this ID");
+        return ret;
     }
 
     /**
@@ -164,52 +159,37 @@ public class JvnCoordImpl
     public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
         // check si qqn a le lock
-        for (JvnObject o : listObjectRefServerUser.keySet()) {
-            // si l'objet est locked
-            if (o.jvnGetObjectId() == joi) {
-                Tuple<JvnRemoteServer, Lock> t = listObjectRefServerUser.get(o);
-                Serializable ref;
-
-                //Si celui qui lockait l'objet n'est pas celui qui redemande un lock
-                if (!(t.a == js)) {
-                    switch (t.b) {
-                        case R:
-                        case RC:
-                            t.a.jvnInvalidateReader(joi);
-                            ref = o.jvnGetObjectState();
-                            t = listObjectRefServerUser.remove(o);
-                            t.a = js;
-                            t.b = Lock.W;     
-                            listObjectRefServerUser.put(o, t);
-                            break;
-                        case W:
-                        case WC:
-                            t.a.jvnInvalidateWriter(joi);
-                            ref = o.jvnInvalidateWriter();
-                            t = listObjectRefServerUser.remove(o);
-                            t.a = js;
-                            t.b = Lock.W;
-                            listObjectRefServerUser.put(o, t);
-                            break;
-                        default:
-                            ref = o.jvnGetObjectState();
-                    }
-                    return ref;
-                } else {
-                    System.err.println("Error : trying to lock something you already lock");
+        JvnObjectState object = listObjects.get(joi);
+        if (object == null) {
+            throw new JvnException("Error : No JvnObject with this ID");
+        }
+        Serializable ret;
+        switch (object.getStatus()) {
+            case W:
+            case WC:
+                ret = object.getWriter().jvnInvalidateWriter(object.getId());
+                object.removeWriter();
+                object.setStatus(Lock.W);
+                object.addWriter(js);
+                break;
+            case R:
+            case RC:
+            case RWC:
+                List<JvnRemoteServer> listReaders = new ArrayList<JvnRemoteServer>();
+                for (JvnRemoteServer reader : object.getReaders()) {
+                    reader.jvnInvalidateReader(object.getId());
+                    listReaders.add(reader);
                 }
-            }
+                for (JvnRemoteServer reader : listReaders) {
+                    object.removeReader(reader);
+                }
+                // Essentiellement on a unlock l'object donc on peut le laisser passer de la partie unlock
+            default:
+                object.setStatus(Lock.W);
+                object.addWriter(js);
+                ret = object.getOwner().jvnGetObject(object.getId()).jvnGetObjectState();
         }
-
-        // OMG personne avait le lock
-        Tuple<JvnRemoteServer, Lock> t = new Tuple<JvnRemoteServer, Lock>(js, Lock.R);
-        for (JvnObject o : listObjectRefToServer.keySet()) {
-            if (o.jvnGetObjectId() == joi) {
-                listObjectRefServerUser.put(o, t);
-                return o.jvnGetObjectState();
-            }
-        }
-        throw new JvnException("Error : No JvnObject with this ID");
+        return ret;
     }
 
     /**
@@ -225,10 +205,14 @@ public class JvnCoordImpl
             Integer idToRemove = listServerToServerId.get(js);
             r.unbind(idToRemove.toString());
             listServerToServerId.remove(js);
+
         } catch (NotBoundException ex) {
-            Logger.getLogger(JvnCoordImpl.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(JvnCoordImpl.class
+                    .getName()).log(Level.SEVERE, null, ex);
+
         } catch (AccessException ex) {
-            Logger.getLogger(JvnCoordImpl.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(JvnCoordImpl.class
+                    .getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -243,16 +227,5 @@ public class JvnCoordImpl
         } catch (AccessException ex) {
             System.err.println(ex);
         }
-    }
-}
-
-class Tuple<X, Y> {
-
-    public X a;
-    public Y b;
-
-    public Tuple(X a, Y b) {
-        this.a = a;
-        this.b = b;
     }
 }
