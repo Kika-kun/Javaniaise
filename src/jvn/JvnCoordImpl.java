@@ -85,8 +85,9 @@ public class JvnCoordImpl
             }
         }
         // Create a new object to register
-        JvnObjectState object = new JvnObjectState(js, jon, jo.jvnGetObjectId());
+        JvnObjectState object = new JvnObjectState(jo, jon, jo.jvnGetObjectId());
         object.setStatus(jo.jvnGetStatus());
+        object.addWriter(js);
         listObjects.put(jo.jvnGetObjectId(), object);
 
         System.out.println("Registered '" + jon + "'");
@@ -107,7 +108,8 @@ public class JvnCoordImpl
             throws java.rmi.RemoteException, jvn.JvnException {
         for (JvnObjectState object : listObjects.values()) {
             if (object.getName().equals(jon)) {
-                return object.getOwner().jvnGetObject(object.getId());
+                System.out.println("orig = "+object.orig);
+                return object.orig;
             }
         }
         return null;
@@ -133,6 +135,7 @@ public class JvnCoordImpl
             case W:
             case WC:
                 ret = object.getWriter().jvnInvalidateWriterForReader(object.getId());
+                object.orig.ref = ret;
                 JvnRemoteServer demotedWriter = object.getWriter();
                 object.removeWriter();
                 object.setStatus(Lock.R);
@@ -142,7 +145,7 @@ public class JvnCoordImpl
             default:
                 object.setStatus(Lock.R);
                 object.addReader(js);
-                ret = object.getOwner().jvnGetObject(object.getId()).jvnGetObjectState();
+                ret = object.orig.jvnGetObjectState();
         }
         return ret;
     }
@@ -168,6 +171,7 @@ public class JvnCoordImpl
             case W:
             case WC:
                 ret = object.getWriter().jvnInvalidateWriter(object.getId());
+                object.orig.ref = ret;
                 object.removeWriter();
                 object.setStatus(Lock.W);
                 object.addWriter(js);
@@ -187,7 +191,7 @@ public class JvnCoordImpl
             default:
                 object.setStatus(Lock.W);
                 object.addWriter(js);
-                ret = object.getOwner().jvnGetObject(object.getId()).jvnGetObjectState();
+                ret = object.orig.jvnGetObjectState();
         }
         return ret;
     }

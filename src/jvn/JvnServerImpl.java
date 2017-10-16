@@ -110,7 +110,7 @@ public class JvnServerImpl
             throws jvn.JvnException {
         try {
             // to be completed
-            coordinator.jvnRegisterObject(jon, jo, js);
+            coordinator.jvnRegisterObject(jon, jo, (JvnRemoteServer) js);
             listObjects.put(jo.jvnGetObjectId(), jo);
         } catch (JvnException ex) {
             //System.out.println("Hello");
@@ -131,11 +131,15 @@ public class JvnServerImpl
     public JvnObject jvnLookupObject(String jon)
             throws jvn.JvnException {
         try {
-            return coordinator.jvnLookupObject(jon, js);
+            JvnObject lookedUpObj = coordinator.jvnLookupObject(jon, js);
+            listObjects.put(lookedUpObj.jvnGetObjectId(), lookedUpObj);
+            return lookedUpObj;
         } catch (RemoteException ex) {
             Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
+            return null;
+        } catch (NullPointerException ex) {
+            return null;
         }
-        return null;
     }
 
     /**
@@ -150,7 +154,8 @@ public class JvnServerImpl
             throws JvnException {
 
         try {
-            return coordinator.jvnLockRead(joi, js);
+            Serializable locked = coordinator.jvnLockRead(joi, js);
+            return locked;
         } catch (RemoteException ex) {
             Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -173,10 +178,11 @@ public class JvnServerImpl
         try {
             // to be completed
             return coordinator.jvnLockWrite(joi, js);
+
         } catch (RemoteException ex) {
             Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
-        System.out.println("On ne doit pas passer ici (lock write)");
+        System.err.println("On ne doit pas passer ici (lock write)");
         return null;
     }
 
@@ -191,8 +197,7 @@ public class JvnServerImpl
      */
     public void jvnInvalidateReader(int joi)
             throws java.rmi.RemoteException, jvn.JvnException {
-        System.out.println("On passe ici ?");
-        // to be completed 
+        listObjects.get(joi).jvnInvalidateReader();
     }
 
     ;
@@ -205,9 +210,8 @@ public class JvnServerImpl
 	**/
   public Serializable jvnInvalidateWriter(int joi)
             throws java.rmi.RemoteException, jvn.JvnException {
-        // to be completed 
-        System.out.println("On passe ici ?2");
-        return null;
+      System.out.print("obj = "+listObjects.get(joi));
+        return listObjects.get(joi).jvnInvalidateWriter();
     }
 
     ;
@@ -221,12 +225,6 @@ public class JvnServerImpl
    public Serializable jvnInvalidateWriterForReader(int joi)
             throws java.rmi.RemoteException, jvn.JvnException {
         // to be completed 
-        return null;
+        return listObjects.get(joi).jvnInvalidateWriterForReader();
     }
-
-    public JvnObject jvnGetObject(int joi)
-            throws RemoteException, JvnException {
-        return listObjects.get(joi);
-    }
-
 }

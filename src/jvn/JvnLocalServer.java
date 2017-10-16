@@ -15,7 +15,6 @@ import java.io.Serializable;
  */
 
 public interface JvnLocalServer {
-	
 	/**
 	* create of a JVN object
 	* @param jos : the JVN object state

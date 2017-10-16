@@ -5,10 +5,8 @@
         <group>
             <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnObjectImpl.java</file>
             <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnCoordImpl.java</file>
-            <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnLocalServer.java</file>
             <file>file:/home/m/marionsy/workspace/Javanaise/src/irc/Irc.java</file>
-            <file>file:/home/m/marionsy/workspace/Javanaise/src/irc/CoordinatorLauncher.java</file>
-            <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnObject.java</file>
+            <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnObjectState.java</file>
             <file>file:/home/m/marionsy/workspace/Javanaise/src/jvn/JvnServerImpl.java</file>
         </group>
     </open-files>

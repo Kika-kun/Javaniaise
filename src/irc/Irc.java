@@ -45,7 +45,7 @@ public class Irc {
                 js.jvnRegisterObject("IRC", jo);
             }
             // create the graphical part of the Chat application
-            aSuppJs = js;
+             aSuppJs = js;
             new Irc(jo);
 
         } catch (JvnException ex) {

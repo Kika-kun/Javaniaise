@@ -17,16 +17,16 @@ class JvnObjectState {
 
     private Lock status;
 
-    private final JvnRemoteServer owner;
-
     private final List<JvnRemoteServer> listReaders;
     private JvnRemoteServer writer;
+    
+    JvnObjectImpl orig;
 
     private final String name;
     private final int id;
 
-    public JvnObjectState(JvnRemoteServer owner, String name, int id) {
-        this.owner = owner;
+    public JvnObjectState(JvnObject jo, String name, int id) {
+        orig = (JvnObjectImpl) jo;
         this.listReaders = new ArrayList<JvnRemoteServer>();
         this.name = name;
         this.id = id;
@@ -38,10 +38,6 @@ class JvnObjectState {
 
     public void setStatus(Lock s) {
         status = s;
-    }
-
-    public JvnRemoteServer getOwner() {
-        return owner;
     }
 
     /**
