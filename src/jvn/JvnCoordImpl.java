@@ -6,21 +6,15 @@
  */
 package jvn;
 
+import irc.Sentence;
 import java.rmi.server.UnicastRemoteObject;
 import java.io.Serializable;
-import java.rmi.AccessException;
-import java.rmi.AlreadyBoundException;
-import java.rmi.NotBoundException;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import jvn.JvnObject.Lock;
+import java.util.Map;
 
 public class JvnCoordImpl
         extends UnicastRemoteObject
@@ -29,8 +23,9 @@ public class JvnCoordImpl
     private static Integer idServ = 0;
     private static Integer objectId = 0;
 
-    private final HashMap<JvnRemoteServer, Integer> listServerToServerId;
-    private final HashMap<Integer, JvnObjectState> listObjects;
+    private static HashMap<JvnObject, JvnRemoteServer> writtenObjects;
+    private static HashMap<JvnObject, List<JvnRemoteServer>> readObjects;
+    private static HashMap<String, JvnObject> objectNames;
 
     private static Registry r;
 
@@ -45,8 +40,9 @@ public class JvnCoordImpl
         r = LocateRegistry.createRegistry(4321);
         r.bind("coordinator", this);
 
-        listServerToServerId = new HashMap<JvnRemoteServer, Integer>();
-        listObjects = new HashMap<Integer, JvnObjectState>();
+        writtenObjects = new HashMap<JvnObject, JvnRemoteServer>();
+        readObjects = new HashMap<JvnObject, List<JvnRemoteServer>>();
+        objectNames = new HashMap<String, JvnObject>();
     }
 
     /**
@@ -78,17 +74,14 @@ public class JvnCoordImpl
     public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
             throws java.rmi.RemoteException, jvn.JvnException {
         // Check if the name is already registered
-        for (JvnObjectState object : listObjects.values()) {
-            if (object.getName().equals(jon)) {
+        for (String name : objectNames.keySet()) {
+            if (name.equals(jon)) {
                 System.err.println("Error : that object name is already registered");
                 throw new JvnException("Trying to register an object under a name already existing.");
             }
         }
-        // Create a new object to register
-        JvnObjectState object = new JvnObjectState(jo, jon, jo.jvnGetObjectId());
-        object.setStatus(jo.jvnGetStatus());
-        object.addWriter(js);
-        listObjects.put(jo.jvnGetObjectId(), object);
+        objectNames.put(jon, jo);
+        writtenObjects.put(jo, js);
 
         System.out.println("Registered '" + jon + "'");
 
@@ -106,13 +99,7 @@ public class JvnCoordImpl
      */
     public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
             throws java.rmi.RemoteException, jvn.JvnException {
-        for (JvnObjectState object : listObjects.values()) {
-            if (object.getName().equals(jon)) {
-                System.out.println("orig = "+object.orig);
-                return object.orig;
-            }
-        }
-        return null;
+        return objectNames.get(jon);
     }
 
     /**
@@ -124,30 +111,50 @@ public class JvnCoordImpl
      * @throws java.rmi.RemoteException, JvnException
      *
      */
-    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
+    public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
-        JvnObjectState object = listObjects.get(joi);
-        if (object == null) {
-            throw new JvnException("Error : No JvnObject with this ID");
+
+        System.out.println("Coord Lock Read");
+
+        for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
+            if (entrySet.getValue().jvnGetObjectId() == joi) {
+
+                // Object exists
+                System.out.println("S avant   = " + (Sentence) entrySet.getValue().jvnGetObjectState());
+                // Check if it's lock read
+                if (readObjects.get(entrySet.getValue()) != null) {
+
+                    if (readObjects.get(entrySet.getValue()).contains(js)) {
+                        return null;
+                    }
+                    readObjects.get(entrySet.getValue()).add(js);
+                    return entrySet.getValue().jvnGetObjectState();
+                }
+
+                // Check if it's lock write
+                if (writtenObjects.get(entrySet.getValue()) != null) {
+                    Serializable s;
+
+                    if (writtenObjects.get(entrySet.getValue()).equals(js)) {
+                        //System.out.println("avant iwfr ; js = " + js + " ; l'autre : " + writtenObjects.get(o));
+                        s = writtenObjects.get(entrySet.getValue()).jvnInvalidateWriterForReader(joi);
+                    } else {
+                        s = writtenObjects.get(entrySet.getValue()).jvnInvalidateWriter(joi);
+                    }
+                    System.out.println("S après   = " + (Sentence) s);
+
+                    writtenObjects.remove(entrySet.getValue());
+                    JvnObject no = entrySet.getValue();
+                    no.jvnSetObjectState(s);
+                    objectNames.put(entrySet.getKey(), no);
+                    List<JvnRemoteServer> readers = new ArrayList<JvnRemoteServer>();
+                    readers.add(js);
+                    readObjects.put(no, readers);
+                    return s;
+                }
+            }
         }
-        Serializable ret;
-        switch (object.getStatus()) {
-            case W:
-            case WC:
-                ret = object.getWriter().jvnInvalidateWriterForReader(object.getId());
-                object.orig.ref = ret;
-                JvnRemoteServer demotedWriter = object.getWriter();
-                object.removeWriter();
-                object.setStatus(Lock.R);
-                object.addReader(js);
-                object.addReader(demotedWriter);
-                break;
-            default:
-                object.setStatus(Lock.R);
-                object.addReader(js);
-                ret = object.orig.jvnGetObjectState();
-        }
-        return ret;
+        throw new JvnException("Error : No JvnObject with this ID");
     }
 
     /**
@@ -159,41 +166,56 @@ public class JvnCoordImpl
      * @throws java.rmi.RemoteException, JvnException
      *
      */
-    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
+    public synchronized  Serializable jvnLockWrite(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
-        // check si qqn a le lock
-        JvnObjectState object = listObjects.get(joi);
-        if (object == null) {
-            throw new JvnException("Error : No JvnObject with this ID");
-        }
-        Serializable ret;
-        switch (object.getStatus()) {
-            case W:
-            case WC:
-                ret = object.getWriter().jvnInvalidateWriter(object.getId());
-                object.orig.ref = ret;
-                object.removeWriter();
-                object.setStatus(Lock.W);
-                object.addWriter(js);
-                break;
-            case R:
-            case RC:
-            case RWC:
-                List<JvnRemoteServer> listReaders = new ArrayList<JvnRemoteServer>();
-                for (JvnRemoteServer reader : object.getReaders()) {
-                    reader.jvnInvalidateReader(object.getId());
-                    listReaders.add(reader);
+
+        System.out.println("Coord Lock Write");
+
+        for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
+            JvnObject o = entrySet.getValue();
+            if (o.jvnGetObjectId() == joi) {
+                // Object exists
+                // Check if it's lock read
+                if (readObjects.get(o) != null) {
+                    if (readObjects.get(o).contains(js)) {
+                        List<JvnRemoteServer> readers = readObjects.get(o);
+                        for (JvnRemoteServer reader : readers) {
+                            if (reader != js) {
+                                reader.jvnInvalidateReader(joi);
+                            }
+                        }
+                        readObjects.remove(o);
+                        writtenObjects.put(o, js);
+
+                        return null;
+                    }
+                    List<JvnRemoteServer> readers = readObjects.get(o);
+                    for (JvnRemoteServer reader : readers) {
+                        reader.jvnInvalidateReader(joi);
+                    }
+                    readObjects.remove(o);
+                    writtenObjects.put(o, js);
+                    return o.jvnGetObjectState();
                 }
-                for (JvnRemoteServer reader : listReaders) {
-                    object.removeReader(reader);
+
+                // Check if it's lock write
+                if (writtenObjects.get(o) != null) {
+                    if (writtenObjects.get(o).equals(js)) {
+                        return null;
+                    }
+                    Serializable s = writtenObjects.get(o).jvnInvalidateWriter(joi);
+                    writtenObjects.remove(o);
+                    JvnObject no = o;
+                    no.jvnSetObjectState(s);
+                    objectNames.put(entrySet.getKey(), no);
+                    writtenObjects.put(no, js);
+                    return s;
                 }
-                // Essentiellement on a unlock l'object donc on peut le laisser passer de la partie unlock
-            default:
-                object.setStatus(Lock.W);
-                object.addWriter(js);
-                ret = object.orig.jvnGetObjectState();
+            }
+
         }
-        return ret;
+        throw new JvnException("Error : No JvnObject with this ID");
+
     }
 
     /**
@@ -205,31 +227,16 @@ public class JvnCoordImpl
      */
     public void jvnTerminate(JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
-        try {
-            Integer idToRemove = listServerToServerId.get(js);
-            r.unbind(idToRemove.toString());
-            listServerToServerId.remove(js);
-
-        } catch (NotBoundException ex) {
-            Logger.getLogger(JvnCoordImpl.class
-                    .getName()).log(Level.SEVERE, null, ex);
-
-        } catch (AccessException ex) {
-            Logger.getLogger(JvnCoordImpl.class
-                    .getName()).log(Level.SEVERE, null, ex);
+        for (JvnObject o : readObjects.keySet()) {
+            if (readObjects.get(o).contains(js)) {
+                readObjects.get(o).remove(js);
+            }
+        }
+        for (JvnObject o : writtenObjects.keySet()) {
+            if (writtenObjects.get(o).equals(js)) {
+                writtenObjects.remove(o);
+            }
         }
     }
 
-    public void JvnRegisterServer(JvnRemoteServer server)
-            throws RemoteException, JvnException {
-        try {
-            r.bind(idServ.toString(), server);
-            listServerToServerId.put(server, idServ);
-            idServ++;
-        } catch (AlreadyBoundException ex) {
-            System.err.println("Error : server name already registered");
-        } catch (AccessException ex) {
-            System.err.println(ex);
-        }
-    }
 }

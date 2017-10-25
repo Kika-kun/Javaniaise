@@ -23,4 +23,13 @@ public class Sentence implements java.io.Serializable {
         return data;
     }
 
+    @Override
+    public String toString() {
+        return data; //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    
+    
+    
+
 }

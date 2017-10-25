@@ -111,4 +111,8 @@ public interface JvnObject extends Serializable {
     // Accessible for the classes of the Jvn package
     // Returns the status of the Object
     Lock jvnGetStatus();
+    
+    // Accessible for the classes of the Jvn package
+    // Changes the value of the referenced object
+    void jvnSetObjectState(Serializable ref);
 }
