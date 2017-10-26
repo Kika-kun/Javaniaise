@@ -6,6 +6,8 @@
 package jvn;
 
 import java.io.Serializable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -97,26 +99,41 @@ public class JvnObjectImpl implements JvnObject {
         notify();
     }
 
-    public synchronized int jvnGetObjectId() throws JvnException {
+    public int jvnGetObjectId() throws JvnException {
         return id;
     }
 
-    public synchronized Serializable jvnGetObjectState() throws JvnException {
+    public Serializable jvnGetObjectState() throws JvnException {
         return ref;
     }
 
+    private void waitUnlockIfNecessary() {
+        try {
+            switch(status) {
+                case R:
+                case W:
+                case RWC:
+                    wait();
+                    break;
+                default:
+            }
+            status = Lock.NL;
+        } catch (InterruptedException ex) {
+            Logger.getLogger(JvnObjectImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
     public synchronized void jvnInvalidateReader() throws JvnException {
-        status = Lock.RC;
+        waitUnlockIfNecessary();
     }
 
     public synchronized Serializable jvnInvalidateWriter() throws JvnException {
-        //wait();
-        status = Lock.WC;
+        waitUnlockIfNecessary();
         return ref;
     }
 
-    public Serializable jvnInvalidateWriterForReader() throws JvnException {
-        status = Lock.RWC;
+    public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
+        waitUnlockIfNecessary();
         return ref;
     }
 

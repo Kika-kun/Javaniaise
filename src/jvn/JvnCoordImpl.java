@@ -6,7 +6,6 @@
  */
 package jvn;
 
-import irc.Sentence;
 import java.rmi.server.UnicastRemoteObject;
 import java.io.Serializable;
 import java.rmi.registry.LocateRegistry;
@@ -120,10 +119,11 @@ public class JvnCoordImpl
             if (entrySet.getValue().jvnGetObjectId() == joi) {
 
                 // Object exists
-                System.out.println("S avant   = " + (Sentence) entrySet.getValue().jvnGetObjectState());
+                //System.out.println("S avant   = " + (Sentence) entrySet.getValue().jvnGetObjectState());
                 // Check if it's lock read
                 if (readObjects.get(entrySet.getValue()) != null) {
-
+                    
+                    // Si celui qui demande a déjà le lock en read
                     if (readObjects.get(entrySet.getValue()).contains(js)) {
                         return null;
                     }
@@ -135,13 +135,15 @@ public class JvnCoordImpl
                 if (writtenObjects.get(entrySet.getValue()) != null) {
                     Serializable s;
 
+                    // Si c'est celui qui demande qui a le lock déjà
                     if (writtenObjects.get(entrySet.getValue()).equals(js)) {
-                        //System.out.println("avant iwfr ; js = " + js + " ; l'autre : " + writtenObjects.get(o));
+                        // On transforme son lock en read
                         s = writtenObjects.get(entrySet.getValue()).jvnInvalidateWriterForReader(joi);
                     } else {
+                        // Sinon on invalidate juste son write
                         s = writtenObjects.get(entrySet.getValue()).jvnInvalidateWriter(joi);
                     }
-                    System.out.println("S après   = " + (Sentence) s);
+                    //System.out.println("S après   = " + (Sentence) s);
 
                     writtenObjects.remove(entrySet.getValue());
                     JvnObject no = entrySet.getValue();
@@ -177,7 +179,9 @@ public class JvnCoordImpl
                 // Object exists
                 // Check if it's lock read
                 if (readObjects.get(o) != null) {
+                    // Si celui qui demande avait déjà le lock en read
                     if (readObjects.get(o).contains(js)) {
+                        // On récupère tous les autres readers et on les invalidate
                         List<JvnRemoteServer> readers = readObjects.get(o);
                         for (JvnRemoteServer reader : readers) {
                             if (reader != js) {
@@ -186,9 +190,10 @@ public class JvnCoordImpl
                         }
                         readObjects.remove(o);
                         writtenObjects.put(o, js);
-
+                        // On retourne rien vu qu'il a déjà l'objet en cache
                         return null;
                     }
+                    // Un nouveau membre cherche a modifier l'objet : on invalidate tous les readers
                     List<JvnRemoteServer> readers = readObjects.get(o);
                     for (JvnRemoteServer reader : readers) {
                         reader.jvnInvalidateReader(joi);
@@ -200,9 +205,11 @@ public class JvnCoordImpl
 
                 // Check if it's lock write
                 if (writtenObjects.get(o) != null) {
+                    // si on avait deja le write
                     if (writtenObjects.get(o).equals(js)) {
                         return null;
                     }
+                    // Sinon on invalidate celui qui avait le write et on se casse
                     Serializable s = writtenObjects.get(o).jvnInvalidateWriter(joi);
                     writtenObjects.remove(o);
                     JvnObject no = o;

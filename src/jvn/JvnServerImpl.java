@@ -10,7 +10,6 @@ import irc.Sentence;
 import java.rmi.server.UnicastRemoteObject;
 import java.io.*;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -76,6 +75,11 @@ public class JvnServerImpl
      */
     public void jvnTerminate()
             throws jvn.JvnException {
+        try {
+            coordinator.jvnTerminate(js);
+        } catch (RemoteException ex) {
+            Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
