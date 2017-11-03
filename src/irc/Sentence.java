@@ -7,7 +7,7 @@
  */
 package irc;
 
-public class Sentence implements java.io.Serializable {
+public class Sentence implements SentenceItf {
 
     String data;
 
@@ -15,10 +15,12 @@ public class Sentence implements java.io.Serializable {
         data = new String("");
     }
 
+    @Override
     public void write(String text) {
         data = text;
     }
 
+    @Override
     public String read() {
         return data;
     }
