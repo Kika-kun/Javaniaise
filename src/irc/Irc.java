@@ -12,6 +12,7 @@ import java.awt.event.*;
 import jvn.*;
 import java.io.*;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,8 +21,7 @@ public class Irc {
     public TextArea text;
     public TextField data;
     Frame frame;
-    JvnObject sentence;
-    static JvnServerImpl aSuppJs;
+    final JvnObject sentence;
 
     /**
      * main method create a JVN object nammed IRC for representing the Chat
@@ -45,7 +45,6 @@ public class Irc {
                 js.jvnRegisterObject("IRC", jo);
             }
             // create the graphical part of the Chat application
-             aSuppJs = js;
             new Irc(jo);
 
         } catch (JvnException ex) {
@@ -59,7 +58,7 @@ public class Irc {
      * @param jo the JVN object representing the Chat
      *
      */
-    public Irc(JvnObject jo) {
+    public Irc(final JvnObject jo) {
         sentence = jo;
         frame = new Frame();
         frame.setLayout(new GridLayout(1, 1));
@@ -69,12 +68,46 @@ public class Irc {
         frame.add(text);
         data = new TextField(40);
         frame.add(data);
+        
         Button read_button = new Button("read");
         read_button.addActionListener(new readListener(this));
         frame.add(read_button);
+        
         Button write_button = new Button("write");
         write_button.addActionListener(new writeListener(this));
         frame.add(write_button);
+
+        Button lock_read_button = new Button("Lock read");
+        lock_read_button.addActionListener(new lockReadListener(this));
+        frame.add(lock_read_button);
+        
+        Button lock_write_button = new Button("Lock write");
+        lock_write_button.addActionListener(new ActionListener() {
+            Integer i = 0;
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    jo.jvnLockWrite();
+                    ((Sentence) jo.jvnGetObjectState()).write(i.toString());
+                    i++;
+                } catch (JvnException ex) {
+                    Logger.getLogger(Irc.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        });
+        frame.add(lock_write_button);
+        
+        Button unlock_button = new Button("unlock");
+        unlock_button.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    jo.jvnUnLock();
+                } catch (JvnException ex) {
+                    Logger.getLogger(Irc.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        });
+        frame.add(unlock_button);
+        
         frame.setSize(545, 201);
         text.setBackground(Color.black);
         frame.setVisible(true);
@@ -147,6 +180,23 @@ class writeListener implements ActionListener {
 
             // unlock the object
             irc.sentence.jvnUnLock();
+        } catch (JvnException je) {
+            System.out.println("IRC problem  : " + je.getMessage());
+        }
+    }
+}
+
+class lockReadListener implements ActionListener {
+    Irc irc;
+
+    public lockReadListener(Irc i) {
+        irc = i;
+    }
+    public void actionPerformed(ActionEvent e) {
+        try {
+            JvnObject jo = irc.sentence;
+            jo.jvnLockRead();
+            System.out.println(((Sentence) jo.jvnGetObjectState()).read());
         } catch (JvnException je) {
             System.out.println("IRC problem  : " + je.getMessage());
         }

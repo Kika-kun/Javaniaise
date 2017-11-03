@@ -113,7 +113,7 @@ public class JvnCoordImpl
     public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
 
-        System.out.println("Coord Lock Read");
+        //System.out.println("Coord Lock Read");
 
         for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
             if (entrySet.getValue().jvnGetObjectId() == joi) {
@@ -135,8 +135,8 @@ public class JvnCoordImpl
                 if (writtenObjects.get(entrySet.getValue()) != null) {
                     Serializable s;
 
-                    // Si c'est celui qui demande qui a le lock déjà
                     if (writtenObjects.get(entrySet.getValue()).equals(js)) {
+                        // Si c'est celui qui demande qui a le lock déjà
                         // On transforme son lock en read
                         s = writtenObjects.get(entrySet.getValue()).jvnInvalidateWriterForReader(joi);
                     } else {
@@ -168,10 +168,10 @@ public class JvnCoordImpl
      * @throws java.rmi.RemoteException, JvnException
      *
      */
-    public synchronized  Serializable jvnLockWrite(int joi, JvnRemoteServer js)
+    public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
 
-        System.out.println("Coord Lock Write");
+        //System.out.println("Coord Lock Write");
 
         for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
             JvnObject o = entrySet.getValue();
@@ -183,9 +183,17 @@ public class JvnCoordImpl
                     if (readObjects.get(o).contains(js)) {
                         // On récupère tous les autres readers et on les invalidate
                         List<JvnRemoteServer> readers = readObjects.get(o);
+                        /* Dans l'idéal on fait ça mais ça ne marche pas je sais pas pourquoi
                         for (JvnRemoteServer reader : readers) {
                             if (reader != js) {
+                                System.out.println("invalidating readers");
                                 reader.jvnInvalidateReader(joi);
+                            }
+                        }*/
+                        int rip = readers.indexOf(js);
+                        for(int i=0; i<readers.size(); i++) {
+                            if (i != rip) {
+                                readers.get(i).jvnInvalidateReader(joi);
                             }
                         }
                         readObjects.remove(o);

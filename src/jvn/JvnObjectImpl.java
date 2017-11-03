@@ -34,6 +34,7 @@ public class JvnObjectImpl implements JvnObject {
     }
 
     public void jvnLockRead() throws JvnException {
+        //System.out.println("Lock read OBJ");
         ref = JvnServerImpl.jvnGetServer().jvnLockRead(id);
 
         switch (status) {
@@ -54,10 +55,10 @@ public class JvnObjectImpl implements JvnObject {
             case RWC:
                 break;
         }
-
     }
 
     public void jvnLockWrite() throws JvnException {
+        //System.out.println("Lock write OBJ");
         ref = JvnServerImpl.jvnGetServer().jvnLockWrite(id);
 
         switch (status) {
@@ -89,14 +90,15 @@ public class JvnObjectImpl implements JvnObject {
                 notify();
                 break;
             case W:
-            case RWC:
                 status = Lock.WC;
                 notify();
                 break;
+            case RWC:
+                status = Lock.RC;
+                notify();
+                break;
             default:
-                System.err.println("Can't unlock something already not locked");
         }
-        notify();
     }
 
     public int jvnGetObjectId() throws JvnException {
@@ -107,9 +109,9 @@ public class JvnObjectImpl implements JvnObject {
         return ref;
     }
 
-    private void waitUnlockIfNecessary() {
+    private synchronized void waitUnlockIfNecessary() {
         try {
-            switch(status) {
+            switch (status) {
                 case R:
                 case W:
                 case RWC:
@@ -122,7 +124,7 @@ public class JvnObjectImpl implements JvnObject {
             Logger.getLogger(JvnObjectImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
     public synchronized void jvnInvalidateReader() throws JvnException {
         waitUnlockIfNecessary();
     }
@@ -133,7 +135,8 @@ public class JvnObjectImpl implements JvnObject {
     }
 
     public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
-        waitUnlockIfNecessary();
+        //waitUnlockIfNecessary();
+        status = Lock.RWC;
         return ref;
     }
 
