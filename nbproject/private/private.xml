@@ -3,15 +3,12 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnServerImpl.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnLocalServer.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/test/Burster.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnObject.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnObjectState.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnRemoteServer.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/irc/Irc.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnObjectImpl.java</file>
-            <file>file:/C:/Users/s-mar/Documents/Cours/M2/IDS2/Javaniaise/src/jvn/JvnCoordImpl.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/irc/Sentence.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/jvn/JvnServerImpl.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/jvn/JvnRemoteCoord.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/jvn/JvnObjectImpl.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/jvn/JvnCoordImpl.java</file>
+            <file>file:/C:/Users/Kikaha/Documents/documents/cours/M2/IDS2/Javaniaise/src/irc/Burster.java</file>
         </group>
     </open-files>
 </project-private>

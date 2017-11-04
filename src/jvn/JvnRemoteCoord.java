@@ -81,6 +81,5 @@ public interface JvnRemoteCoord extends Remote {
      */
     public void jvnTerminate(JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException;
-//
 
 }

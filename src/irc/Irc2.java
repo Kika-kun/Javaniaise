@@ -62,7 +62,6 @@ public class Irc2 {
         frame.setVisible(true);
     }
     
-    
     final ActionListener rl = new ActionListener() {
         public void actionPerformed(ActionEvent e) {
             // invoke the method

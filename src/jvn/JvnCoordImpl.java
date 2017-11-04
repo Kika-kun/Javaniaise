@@ -12,20 +12,21 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 public class JvnCoordImpl
         extends UnicastRemoteObject
         implements JvnRemoteCoord {
-
+    
     private static Integer idServ = 0;
     private static Integer objectId = 0;
-
+    
     private static HashMap<JvnObject, JvnRemoteServer> writtenObjects;
     private static HashMap<JvnObject, List<JvnRemoteServer>> readObjects;
     private static HashMap<String, JvnObject> objectNames;
-
+    
     private static Registry r;
 
     /**
@@ -38,7 +39,7 @@ public class JvnCoordImpl
         // Create registry
         r = LocateRegistry.createRegistry(4321);
         r.bind("coordinator", this);
-
+        
         writtenObjects = new HashMap<JvnObject, JvnRemoteServer>();
         readObjects = new HashMap<JvnObject, List<JvnRemoteServer>>();
         objectNames = new HashMap<String, JvnObject>();
@@ -81,9 +82,9 @@ public class JvnCoordImpl
         }
         objectNames.put(jon, jo);
         writtenObjects.put(jo, js);
-
+        
         System.out.println("Registered '" + jon + "'");
-
+        
     }
 
     /**
@@ -114,7 +115,6 @@ public class JvnCoordImpl
             throws java.rmi.RemoteException, JvnException {
 
         //System.out.println("Coord Lock Read");
-
         for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
             if (entrySet.getValue().jvnGetObjectId() == joi) {
 
@@ -122,7 +122,7 @@ public class JvnCoordImpl
                 //System.out.println("S avant   = " + (Sentence) entrySet.getValue().jvnGetObjectState());
                 // Check if it's lock read
                 if (readObjects.get(entrySet.getValue()) != null) {
-                    
+
                     // Si celui qui demande a déjà le lock en read
                     if (readObjects.get(entrySet.getValue()).contains(js)) {
                         return null;
@@ -134,7 +134,7 @@ public class JvnCoordImpl
                 // Check if it's lock write
                 if (writtenObjects.get(entrySet.getValue()) != null) {
                     Serializable s;
-
+                    
                     if (writtenObjects.get(entrySet.getValue()).equals(js)) {
                         // Si c'est celui qui demande qui a le lock déjà
                         // On transforme son lock en read
@@ -172,7 +172,6 @@ public class JvnCoordImpl
             throws java.rmi.RemoteException, JvnException {
 
         //System.out.println("Coord Lock Write");
-
         for (Map.Entry<String, JvnObject> entrySet : objectNames.entrySet()) {
             JvnObject o = entrySet.getValue();
             if (o.jvnGetObjectId() == joi) {
@@ -191,7 +190,7 @@ public class JvnCoordImpl
                             }
                         }*/
                         int rip = readers.indexOf(js);
-                        for(int i=0; i<readers.size(); i++) {
+                        for (int i = 0; i < readers.size(); i++) {
                             if (i != rip) {
                                 readers.get(i).jvnInvalidateReader(joi);
                             }
@@ -227,10 +226,10 @@ public class JvnCoordImpl
                     return s;
                 }
             }
-
+            
         }
         throw new JvnException("Error : No JvnObject with this ID");
-
+        
     }
 
     /**
@@ -242,16 +241,31 @@ public class JvnCoordImpl
      */
     public void jvnTerminate(JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
-        for (JvnObject o : readObjects.keySet()) {
-            if (readObjects.get(o).contains(js)) {
-                readObjects.get(o).remove(js);
+        for (Map.Entry<JvnObject, JvnRemoteServer> jo2Js : writtenObjects.entrySet()) {
+            if (jo2Js.getValue().equals(js)) {
+                Serializable ns = js.jvnInvalidateWriter(jo2Js.getKey().jvnGetObjectId());
+                /*for (Map.Entry<String, JvnObject> name2Js : objectNames.entrySet()) {
+                    if (name2Js.getValue().equals(jo2Js.getKey())) {
+                        JvnObject nObj = objectNames.get(name2Js.getKey());
+                        nObj.jvnSetObjectState(ns);
+                        objectNames.put(name2Js.getKey(), nObj);
+                    }
+                }*/
+                jo2Js.getKey().jvnSetObjectState(ns);
+            }
+            writtenObjects.remove(jo2Js.getKey());
+        }
+        
+        for (Map.Entry<JvnObject, List<JvnRemoteServer>> jo2Jss : readObjects.entrySet()) {
+            if (jo2Jss.getValue().contains(js)) {
+                js.jvnInvalidateReader(jo2Jss.getKey().jvnGetObjectId());
+                readObjects.get(jo2Jss.getKey()).remove(js);
+                if (readObjects.get(jo2Jss.getKey()).isEmpty()) {
+                    readObjects.remove(jo2Jss.getKey());
+                }
             }
         }
-        for (JvnObject o : writtenObjects.keySet()) {
-            if (writtenObjects.get(o).equals(js)) {
-                writtenObjects.remove(o);
-            }
-        }
+        
     }
-
+    
 }

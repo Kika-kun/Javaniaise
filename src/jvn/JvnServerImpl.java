@@ -6,7 +6,6 @@
  */
 package jvn;
 
-import irc.Sentence;
 import java.rmi.server.UnicastRemoteObject;
 import java.io.*;
 import java.rmi.NotBoundException;
@@ -27,6 +26,8 @@ public class JvnServerImpl
     private static HashMap<Integer, JvnObject> cachedObjects;
 
     private JvnRemoteCoord coordinator;
+    
+    private final int maxCacheSize;
 
     /**
      * Default constructor
@@ -34,9 +35,10 @@ public class JvnServerImpl
      * @throws JvnException
      *
      */
-    private JvnServerImpl() throws Exception {
+    private JvnServerImpl(int maxCacheSize) throws Exception {
         super();
-
+        
+        this.maxCacheSize = maxCacheSize;
         // Get le registry
         Registry r = LocateRegistry.getRegistry(4321);
         try {
@@ -59,7 +61,7 @@ public class JvnServerImpl
     public static JvnServerImpl jvnGetServer() {
         if (js == null) {
             try {
-                js = new JvnServerImpl();
+                js = new JvnServerImpl(5);
             } catch (Exception e) {
                 return null;
             }
@@ -114,6 +116,9 @@ public class JvnServerImpl
             throws jvn.JvnException {
         try {
             coordinator.jvnRegisterObject(jon, jo, (JvnRemoteServer) js);
+            if (cachedObjects.size() >= maxCacheSize) {
+                throw new jvn.JvnException("Cache full");
+            }
             cachedObjects.put(jo.jvnGetObjectId(), jo);
         } catch (JvnException ex) {
             throw ex;
@@ -134,6 +139,9 @@ public class JvnServerImpl
             throws jvn.JvnException {
         try {
             JvnObject lookedUpObj = coordinator.jvnLookupObject(jon, js);
+            if (cachedObjects.size() >= maxCacheSize) {
+                throw new jvn.JvnException("Cache full");
+            }
             cachedObjects.put(lookedUpObj.jvnGetObjectId(), lookedUpObj);
             return lookedUpObj;
         } catch (RemoteException ex) {
@@ -216,8 +224,6 @@ public class JvnServerImpl
 
         cachedObjects.get(joi).jvnInvalidateReader();
     }
-
-    ;
 	    
 	/**
 	* Invalidate the Write lock of the JVN object identified by id 
@@ -232,8 +238,6 @@ public class JvnServerImpl
         
         return cachedObjects.get(joi).jvnInvalidateWriter();
     }
-
-    ;
 	
 	/**
 	* Reduce the Write lock of the JVN object identified by id 
@@ -246,4 +250,14 @@ public class JvnServerImpl
         //System.out.println("Server Invalidate writer for reader");
         return cachedObjects.get(joi).jvnInvalidateWriterForReader();
     }
+   
+   public void jvnFlush()
+           throws jvn.JvnException {
+        try {
+            coordinator.jvnTerminate(js);
+            cachedObjects.clear();
+        } catch (RemoteException ex) {
+            Logger.getLogger(JvnServerImpl.class.getName()).log(Level.SEVERE, null, ex);
+        }
+   }
 }
