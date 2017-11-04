@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class JvnCoordImpl
         extends UnicastRemoteObject
@@ -23,9 +24,9 @@ public class JvnCoordImpl
     private static Integer idServ = 0;
     private static Integer objectId = 0;
     
-    private static HashMap<JvnObject, JvnRemoteServer> writtenObjects;
-    private static HashMap<JvnObject, List<JvnRemoteServer>> readObjects;
-    private static HashMap<String, JvnObject> objectNames;
+    private static ConcurrentHashMap<JvnObject, JvnRemoteServer> writtenObjects;
+    private static ConcurrentHashMap<JvnObject, List<JvnRemoteServer>> readObjects;
+    private static ConcurrentHashMap<String, JvnObject> objectNames;
     
     private static Registry r;
 
@@ -40,9 +41,9 @@ public class JvnCoordImpl
         r = LocateRegistry.createRegistry(4321);
         r.bind("coordinator", this);
         
-        writtenObjects = new HashMap<JvnObject, JvnRemoteServer>();
-        readObjects = new HashMap<JvnObject, List<JvnRemoteServer>>();
-        objectNames = new HashMap<String, JvnObject>();
+        writtenObjects = new ConcurrentHashMap<JvnObject, JvnRemoteServer>();
+        readObjects = new ConcurrentHashMap<JvnObject, List<JvnRemoteServer>>();
+        objectNames = new ConcurrentHashMap<String, JvnObject>();
     }
 
     /**
@@ -239,7 +240,7 @@ public class JvnCoordImpl
      * @throws java.rmi.RemoteException, JvnException
      *
      */
-    public void jvnTerminate(JvnRemoteServer js)
+    public synchronized void jvnTerminate(JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException {
         for (Map.Entry<JvnObject, JvnRemoteServer> jo2Js : writtenObjects.entrySet()) {
             if (jo2Js.getValue().equals(js)) {

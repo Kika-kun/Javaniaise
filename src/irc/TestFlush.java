@@ -7,7 +7,6 @@ package irc;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jvn.JvnException;
@@ -16,12 +15,11 @@ import jvn.JvnServerImpl;
 
 /**
  *
- * @author Kikaha
+ * @author Loic
  */
-public class Burster {
-    public static void main(String[] args) {        
-        // Je crée 5 objets
-        List<SentenceItf> ls = new ArrayList<SentenceItf>();
+public class TestFlush {
+    public static void main(String[] args) throws JvnException {
+    List<SentenceItf> ls = new ArrayList<SentenceItf>();
         for (int i = 0; i < 5; i++) {
             try {
                 SentenceItf s = (SentenceItf) JvnProxy.createObject(new Sentence(), ((Integer) i).toString());
@@ -30,19 +28,17 @@ public class Burster {
                 Logger.getLogger(Burster.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        
-        Random r = new Random();
-        for (int i = 0; i < 200000; i++) {
-            if (i%10000 == 0) {
-                System.out.println("#" + i);
-            }
-            SentenceItf s = ls.get(r.nextInt(ls.size()));
-            if(r.nextInt()%2 == 0) {
-                s.read();
-            }
-            else {
-                s.write(((Double) r.nextDouble()).toString());
+        JvnServerImpl.jvnGetServer().jvnFlush();
+        for (int i = 5; i < 10; i++) {
+            try {
+                SentenceItf s = (SentenceItf) JvnProxy.createObject(new Sentence(), ((Integer) i).toString());
+                ls.add(s);
+            } catch (JvnException ex) {
+                Logger.getLogger(Burster.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        
+        
+        
     }
 }

@@ -13,6 +13,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,7 +24,7 @@ public class JvnServerImpl
     // A JVN server is managed as a singleton 
     private static JvnServerImpl js = null;
 
-    private static HashMap<Integer, JvnObject> cachedObjects;
+    private static ConcurrentHashMap<Integer, JvnObject> cachedObjects;
 
     private JvnRemoteCoord coordinator;
     
@@ -43,7 +44,7 @@ public class JvnServerImpl
         Registry r = LocateRegistry.getRegistry(4321);
         try {
             coordinator = (JvnRemoteCoord) r.lookup("coordinator");
-            cachedObjects = new HashMap<Integer, JvnObject>();
+            cachedObjects = new ConcurrentHashMap<Integer, JvnObject>();
         } catch (RemoteException e) {
             System.err.println("Error : registry doesn't exist");
         } catch (NotBoundException e) {
@@ -116,7 +117,7 @@ public class JvnServerImpl
             throws jvn.JvnException {
         try {
             coordinator.jvnRegisterObject(jon, jo, (JvnRemoteServer) js);
-            if (cachedObjects.size() >= maxCacheSize) {
+            if (cachedObjects.size() > maxCacheSize) {
                 throw new jvn.JvnException("Cache full");
             }
             cachedObjects.put(jo.jvnGetObjectId(), jo);
@@ -139,7 +140,7 @@ public class JvnServerImpl
             throws jvn.JvnException {
         try {
             JvnObject lookedUpObj = coordinator.jvnLookupObject(jon, js);
-            if (cachedObjects.size() >= maxCacheSize) {
+            if (cachedObjects.size() > maxCacheSize) {
                 throw new jvn.JvnException("Cache full");
             }
             cachedObjects.put(lookedUpObj.jvnGetObjectId(), lookedUpObj);
